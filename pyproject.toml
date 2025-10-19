@@ -1,0 +1,11 @@
+[project]
+name = "language-learning"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "alembic>=1.17.0",
+    "reflex>=0.8.15",
+    "sqlmodel>=0.0.27",
+]
