@@ -5,6 +5,5 @@ config = rx.Config(
     db_url="sqlite:///reflex.db",  # Database configuration
     plugins=[
         rx.plugins.SitemapPlugin(),
-        rx.plugins.TailwindV4Plugin(),
     ]
 )
