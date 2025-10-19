@@ -12,21 +12,24 @@ class LeitnerService:
     """Service for managing Leitner box algorithm."""
     
     @staticmethod
-    def get_due_cards(topic_id: Optional[int] = None, user_id: Optional[int] = None) -> List[Flashcard]:
+    def get_due_cards(topic_id: Optional[int] = None, user_id: Optional[int] = None, review_order: str = "random") -> List[Flashcard]:
         """
         Get all flashcards due for review today.
         
         Args:
             topic_id: Filter by topic (optional)
             user_id: Filter by user (optional)
+            review_order: Order of cards - "random", "oldest_first", "newest_first" (default: "random")
             
         Returns:
             List of flashcards due for review
             
         Example:
-            >>> cards = LeitnerService.get_due_cards(topic_id=1, user_id=1)
+            >>> cards = LeitnerService.get_due_cards(topic_id=1, user_id=1, review_order="oldest_first")
             >>> print(f"Found {len(cards)} cards to review")
         """
+        import random
+        
         with rx.session() as session:
             # Build query
             query = select(Flashcard).join(LeitnerState)
@@ -42,8 +45,22 @@ class LeitnerService:
             
             query = query.where(and_(*conditions))
             
-            # Execute and return
+            # Apply ordering
+            if review_order == "oldest_first":
+                query = query.order_by(Flashcard.created_at.asc())
+            elif review_order == "newest_first":
+                query = query.order_by(Flashcard.created_at.desc())
+            # For random, we'll shuffle after fetching
+            
+            # Execute
             cards = session.exec(query).all()
+            
+            # Shuffle if random order
+            if review_order == "random":
+                cards_list = list(cards)
+                random.shuffle(cards_list)
+                return cards_list
+            
             return cards
     
     @staticmethod

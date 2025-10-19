@@ -9,8 +9,23 @@ from vocab_stack.pages.statistics import statistics_page, StatsState
 from vocab_stack.pages.settings import settings_page, SettingsState
 
 
+# Load user theme preference (default to light if not set)
+def get_user_theme() -> str:
+    """Get user's theme preference from database."""
+    try:
+        from vocab_stack.services.settings_service import SettingsService
+        settings = SettingsService.get_user_settings(1)  # Hardcoded user_id for demo
+        return settings.get("theme", "light")
+    except Exception:
+        # If database not initialized or error, default to light
+        return "light"
+
+
+user_theme = get_user_theme()
+
 app = rx.App(
     theme=rx.theme(
+        appearance=user_theme,  # "light" or "dark"
         accent_color="blue",
         radius="large",
     )

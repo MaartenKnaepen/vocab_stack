@@ -10,6 +10,12 @@ class DashboardState(rx.State):
     total_due: int = 0
     loading: bool = False
     has_topics: bool = False
+    
+    # Daily goal tracking
+    daily_goal: int = 50
+    reviews_today: int = 0
+    goal_percentage: int = 0
+    goal_reached: bool = False
 
     def on_mount(self):
         self.load_dashboard_data()
@@ -37,7 +43,32 @@ class DashboardState(rx.State):
         self.topics = topics_list
         self.total_due = total_due
         self.has_topics = len(topics_list) > 0
+        
+        # Load daily goal progress
+        self.load_daily_goal_progress()
+        
         self.loading = False
+    
+    def load_daily_goal_progress(self):
+        """Load user's daily goal and today's review count."""
+        from vocab_stack.services.settings_service import SettingsService
+        from vocab_stack.services.statistics_service import StatisticsService
+        
+        # Get user preferences
+        settings = SettingsService.get_user_settings(1)
+        self.daily_goal = settings.get("daily_goal", 50)
+        
+        # Get today's review count
+        overview = StatisticsService.get_user_overview(1)
+        self.reviews_today = overview.get("reviews_today", 0)
+        
+        # Calculate progress
+        if self.daily_goal > 0:
+            self.goal_percentage = min(int((self.reviews_today / self.daily_goal) * 100), 100)
+        else:
+            self.goal_percentage = 0
+        
+        self.goal_reached = self.reviews_today >= self.daily_goal
 
 
 def topic_card(topic: dict) -> rx.Component:
@@ -92,18 +123,53 @@ def dashboard_page() -> rx.Component:
             DashboardState.loading,
             rx.spinner(size="3"),
             rx.vstack(
-                rx.card(
-                    rx.hstack(
+                # Cards due and daily goal cards
+                rx.grid(
+                    rx.card(
                         rx.vstack(
                             rx.text("Cards Due Today", size="2", color="gray"),
                             rx.heading(DashboardState.total_due.to_string(), size="9", color="orange"),
-                            align="start",
+                            rx.link(
+                                rx.button("Start Review", size="3", disabled=DashboardState.total_due == 0),
+                                href="/review"
+                            ),
+                            align="center",
+                            spacing="3",
                         ),
-                        rx.spacer(),
-                        rx.link(rx.button("Start Review", size="3", disabled=DashboardState.total_due == 0), href="/review"),
-                        width="100%",
-                        align="center",
                     ),
+                    rx.card(
+                        rx.vstack(
+                            rx.hstack(
+                                rx.text("Daily Goal", size="2", color="gray", weight="bold"),
+                                rx.spacer(),
+                                rx.cond(
+                                    DashboardState.goal_reached,
+                                    rx.badge("🎉 Goal Reached!", color_scheme="green"),
+                                ),
+                                width="100%",
+                            ),
+                            rx.heading(
+                                DashboardState.reviews_today.to_string() + " / " + DashboardState.daily_goal.to_string(),
+                                size="7",
+                                color="blue",
+                            ),
+                            rx.progress(
+                                value=DashboardState.goal_percentage,
+                                width="100%",
+                                color_scheme="blue",
+                            ),
+                            rx.text(
+                                DashboardState.goal_percentage.to_string() + "% complete",
+                                size="2",
+                                color="gray",
+                            ),
+                            align="start",
+                            spacing="2",
+                            width="100%",
+                        ),
+                    ),
+                    columns="2",
+                    spacing="4",
                     width="100%",
                 ),
                 rx.heading("Your Topics", size="5", margin_top="1rem"),

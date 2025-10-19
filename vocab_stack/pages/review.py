@@ -12,6 +12,11 @@ class ReviewState(rx.State):
     loading: bool = False
     correct_count: int = 0
     incorrect_count: int = 0
+    
+    # User preferences
+    show_examples: bool = True
+    cards_per_session: int = 20
+    review_order: str = "random"
 
     @rx.var
     def current_card(self) -> dict:
@@ -33,11 +38,26 @@ class ReviewState(rx.State):
         return int(((self.current_index + 1) / len(self.cards_to_review)) * 100)
 
     def on_mount(self):
+        self.load_user_preferences()
         self.load_review_cards()
+    
+    def load_user_preferences(self):
+        """Load user preferences from settings."""
+        from vocab_stack.services.settings_service import SettingsService
+        settings = SettingsService.get_user_settings(1)
+        self.show_examples = settings.get("show_examples", True)
+        self.cards_per_session = settings.get("cards_per_session", 20)
+        self.review_order = settings.get("review_order", "random")
 
     def load_review_cards(self, topic_id: int | None = None):
         self.loading = True
-        self.cards_to_review = LeitnerService.get_due_cards(topic_id=topic_id, user_id=1)
+        # Get due cards with user's preferred order, limited by cards_per_session
+        all_cards = LeitnerService.get_due_cards(
+            topic_id=topic_id,
+            user_id=1,
+            review_order=self.review_order
+        )
+        self.cards_to_review = all_cards[:self.cards_per_session]
         self.current_index = 0
         self.show_answer = False
         self.session_complete = len(self.cards_to_review) == 0
@@ -83,8 +103,9 @@ def flashcard_display() -> rx.Component:
             rx.vstack(
                 rx.text("Answer", size="2", color="gray", weight="bold"),
                 rx.heading(ReviewState.current_card["back"], size="6", text_align="center"),
+                # Only show example if preference is enabled AND card has an example
                 rx.cond(
-                    ReviewState.current_card["example"].to_string() != "",
+                    ReviewState.show_examples & (ReviewState.current_card["example"].to_string() != ""),
                     rx.box(
                         rx.text("Example:", size="2", color="gray", weight="bold"),
                         rx.text(ReviewState.current_card["example"], size="3", style={"fontStyle": "italic"}),
