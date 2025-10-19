@@ -1,0 +1,11 @@
+This directory contains Alembic migration scripts for the vocab_stack project.
+
+Key settings:
+- alembic.ini: sqlalchemy.url = sqlite:///reflex.db
+- env.py: target_metadata = SQLModel.metadata; render_as_batch=True for SQLite.
+
+Typical commands:
+- alembic revision --autogenerate -m "initial schema"
+- alembic upgrade head
+- alembic history
+- alembic current
