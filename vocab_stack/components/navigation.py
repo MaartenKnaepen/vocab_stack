@@ -13,6 +13,7 @@ def navbar() -> rx.Component:
                 rx.link(rx.button("Review", variant="soft", size="2"), href="/review"),
                 rx.link(rx.button("Topics", variant="soft", size="2"), href="/topics"),
                 rx.link(rx.button("Cards", variant="soft", size="2"), href="/cards"),
+                rx.link(rx.button("Statistics", variant="soft", size="2"), href="/statistics"),
                 spacing="3",
             ),
             width="100%",

@@ -5,6 +5,7 @@ from vocab_stack.pages.dashboard import dashboard_page, DashboardState
 from vocab_stack.pages.review import review_page, ReviewState
 from vocab_stack.pages.topics import topics_page, TopicState
 from vocab_stack.pages.cards import cards_page, CardState
+from vocab_stack.pages.statistics import statistics_page, StatsState
 
 
 app = rx.App(
@@ -44,4 +45,12 @@ app.add_page(
     route="/cards",
     title="Flashcards - Vocab App",
     on_load=CardState.on_mount,
+)
+
+# Statistics
+app.add_page(
+    lambda: layout(statistics_page()),
+    route="/statistics",
+    title="Statistics - Vocab App",
+    on_load=StatsState.on_mount,
 )
