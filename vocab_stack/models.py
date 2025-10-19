@@ -12,6 +12,13 @@ class User(rx.Model, table=True):
     email: str = Field(unique=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
+    # Preferences
+    cards_per_session: int = Field(default=20, ge=5, le=100)
+    review_order: str = Field(default="random")  # random, oldest_first, newest_first
+    show_examples: bool = Field(default=True)
+    theme: str = Field(default="light")  # light, dark
+    daily_goal: int = Field(default=50, ge=10, le=200)
+    
     # Relationships
     flashcards: List["Flashcard"] = Relationship(back_populates="user")
 

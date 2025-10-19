@@ -14,6 +14,7 @@ def navbar() -> rx.Component:
                 rx.link(rx.button("Topics", variant="soft", size="2"), href="/topics"),
                 rx.link(rx.button("Cards", variant="soft", size="2"), href="/cards"),
                 rx.link(rx.button("Statistics", variant="soft", size="2"), href="/statistics"),
+                rx.link(rx.button("Settings", variant="soft", size="2"), href="/settings"),
                 spacing="3",
             ),
             width="100%",
