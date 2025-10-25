@@ -1,6 +1,6 @@
 """Topic management page."""
 import reflex as rx
-from vocab_stack.models import Topic
+from vocab_stack.models import Topic, Flashcard, LeitnerState, ReviewHistory
 from sqlmodel import select
 
 
@@ -23,6 +23,11 @@ class TopicState(rx.State):
     loading: bool = False
     error_message: str = ""
     has_topics: bool = False
+    
+    # Delete confirmation
+    confirm_delete_topic_id: int = -1
+    confirm_delete_topic_name: str = ""
+    confirm_delete_card_count: int = 0
     
     async def on_mount(self):
         """Load topics on page mount."""
@@ -120,20 +125,65 @@ class TopicState(rx.State):
         self.error_message = ""
         self.load_topics()
     
-    def delete_topic(self, topic_id: int):
-        """Delete a topic."""
+    def show_delete_confirmation(self, topic_id: int, topic_name: str):
+        """Show confirmation dialog before deleting a topic."""
+        self.confirm_delete_topic_id = topic_id
+        self.confirm_delete_topic_name = topic_name
+        self.error_message = ""
+        
+        # Count cards in this topic
         with rx.session() as session:
+            card_count = session.exec(
+                select(Flashcard).where(Flashcard.topic_id == topic_id)
+            ).all()
+            self.confirm_delete_card_count = len(card_count)
+    
+    def cancel_delete(self):
+        """Cancel topic deletion."""
+        self.confirm_delete_topic_id = -1
+        self.confirm_delete_topic_name = ""
+        self.confirm_delete_card_count = 0
+    
+    def delete_topic_confirmed(self):
+        """Delete a topic and all its associated cards."""
+        topic_id = self.confirm_delete_topic_id
+        
+        with rx.session() as session:
+            # Get all flashcards for this topic
+            flashcards = session.exec(
+                select(Flashcard).where(Flashcard.topic_id == topic_id)
+            ).all()
+            
+            # Delete related records for each flashcard
+            for flashcard in flashcards:
+                # Delete LeitnerState records
+                leitner_states = session.exec(
+                    select(LeitnerState).where(LeitnerState.flashcard_id == flashcard.id)
+                ).all()
+                for state in leitner_states:
+                    session.delete(state)
+                
+                # Delete ReviewHistory records
+                review_histories = session.exec(
+                    select(ReviewHistory).where(ReviewHistory.flashcard_id == flashcard.id)
+                ).all()
+                for history in review_histories:
+                    session.delete(history)
+                
+                # Delete the flashcard itself
+                session.delete(flashcard)
+            
+            # Finally, delete the topic
             topic = session.get(Topic, topic_id)
             if topic:
-                # Note: This will fail if there are flashcards referencing this topic
-                # In production, you'd want to handle this gracefully
-                try:
-                    session.delete(topic)
-                    session.commit()
-                except Exception as e:
-                    self.error_message = "Cannot delete topic with existing flashcards"
-                    return
+                session.delete(topic)
+            
+            session.commit()
         
+        # Reset confirmation state and reload
+        self.confirm_delete_topic_id = -1
+        self.confirm_delete_topic_name = ""
+        self.confirm_delete_card_count = 0
         self.load_topics()
 
 
@@ -203,7 +253,10 @@ def topic_row(topic: dict) -> rx.Component:
                     ),
                     rx.button(
                         "Delete",
-                        on_click=lambda: TopicState.delete_topic(topic["id"]),
+                        on_click=lambda: TopicState.show_delete_confirmation(
+                            topic["id"],
+                            topic["name"],
+                        ),
                         size="2",
                         color_scheme="red",
                         variant="soft",
@@ -237,6 +290,53 @@ def topics_page() -> rx.Component:
                 TopicState.error_message,
                 icon="triangle_alert",
                 color_scheme="red",
+            ),
+        ),
+        
+        # Delete confirmation dialog
+        rx.cond(
+            TopicState.confirm_delete_topic_id != -1,
+            rx.card(
+                rx.vstack(
+                    rx.heading("Confirm Delete", size="5", color="red"),
+                    rx.text(
+                        f"Are you sure you want to delete the topic '",
+                        rx.text(TopicState.confirm_delete_topic_name, weight="bold", as_="span"),
+                        "'?",
+                    ),
+                    rx.cond(
+                        TopicState.confirm_delete_card_count > 0,
+                        rx.callout(
+                            rx.text(
+                                "This will permanently delete ",
+                                rx.text(TopicState.confirm_delete_card_count.to_string(), weight="bold", as_="span"),
+                                " flashcard(s) and all associated review history.",
+                            ),
+                            icon="info",
+                            color_scheme="orange",
+                        ),
+                        rx.text("This topic has no flashcards.", color="gray"),
+                    ),
+                    rx.hstack(
+                        rx.button(
+                            "Cancel",
+                            on_click=TopicState.cancel_delete,
+                            variant="soft",
+                            size="3",
+                        ),
+                        rx.button(
+                            "Delete Topic",
+                            on_click=TopicState.delete_topic_confirmed,
+                            color_scheme="red",
+                            size="3",
+                        ),
+                        spacing="3",
+                        justify="end",
+                        width="100%",
+                    ),
+                    spacing="4",
+                    align="start",
+                ),
             ),
         ),
         
