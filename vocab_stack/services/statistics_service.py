@@ -214,15 +214,23 @@ class StatisticsService:
     def get_learning_streak(user_id: int) -> dict:
         """Calculate current learning streak."""
         with rx.session() as session:
-            # Get all review dates
-            review_dates = session.exec(
+            # Get all review dates - func.date() returns strings, so we need to convert them
+            review_date_strings = session.exec(
                 select(func.date(ReviewHistory.review_date).distinct())
                 .where(ReviewHistory.user_id == user_id)
                 .order_by(func.date(ReviewHistory.review_date).desc())
             ).all()
             
-            if not review_dates:
+            if not review_date_strings:
                 return {"current_streak": 0, "longest_streak": 0}
+            
+            # Convert strings to date objects
+            review_dates = []
+            for date_str in review_date_strings:
+                if isinstance(date_str, str):
+                    review_dates.append(datetime.strptime(date_str, "%Y-%m-%d").date())
+                else:
+                    review_dates.append(date_str)
             
             # Calculate current streak
             current_streak = 0
@@ -240,7 +248,8 @@ class StatisticsService:
             temp_streak = 1
             
             for i in range(1, len(review_dates)):
-                if review_dates[i - 1] - review_dates[i] == timedelta(days=1):
+                days_diff = (review_dates[i - 1] - review_dates[i]).days
+                if days_diff == 1:
                     temp_streak += 1
                     longest_streak = max(longest_streak, temp_streak)
                 else:

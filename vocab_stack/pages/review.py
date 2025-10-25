@@ -93,22 +93,29 @@ class ReviewState(rx.State):
     def flip_card(self):
         self.show_answer = not self.show_answer
 
-    def mark_correct(self):
+    async def mark_correct(self):
         if not self.current_card:
             return
-        LeitnerService.process_review(self.current_card["id"], user_id=1, was_correct=True)
+        from vocab_stack.pages.auth import AuthState
+        auth = await self.get_state(AuthState)
+        if auth.current_user_id:
+            LeitnerService.process_review(self.current_card["id"], user_id=auth.current_user_id, was_correct=True)
         self.correct_count += 1
         self._next_card()
 
-    def mark_incorrect(self):
+    async def mark_incorrect(self):
         if not self.current_card:
             return
-        LeitnerService.process_review(self.current_card["id"], user_id=1, was_correct=False)
+        from vocab_stack.pages.auth import AuthState
+        auth = await self.get_state(AuthState)
+        if auth.current_user_id:
+            LeitnerService.process_review(self.current_card["id"], user_id=auth.current_user_id, was_correct=False)
         self.incorrect_count += 1
         self._next_card()
 
     def _next_card(self):
         self.show_answer = False
+        self.reset_input()  # Reset input for next card
         self.current_index += 1
         if self.current_index >= len(self.cards_to_review):
             self.session_complete = True
@@ -123,7 +130,7 @@ class ReviewState(rx.State):
         self.is_correct = check_answer(self.user_input, self.current_card["back"], "normal")
         self.answer_checked = True
 
-    def submit_answer(self):
+    async def submit_answer(self):
         """Submit the typed answer and process the review."""
         if not self.current_card:
             return
@@ -131,7 +138,10 @@ class ReviewState(rx.State):
         self.check_answer()
         
         # Record the review
-        LeitnerService.process_review(self.current_card["id"], user_id=1, was_correct=self.is_correct)
+        from vocab_stack.pages.auth import AuthState
+        auth = await self.get_state(AuthState)
+        if auth.current_user_id:
+            LeitnerService.process_review(self.current_card["id"], user_id=auth.current_user_id, was_correct=self.is_correct)
         
         if self.is_correct:
             self.correct_count += 1
@@ -236,20 +246,54 @@ def type_mode_display() -> rx.Component:
             rx.cond(
                 ReviewState.answer_checked,
                 rx.vstack(
+                    # Success/Failure indicator with clear visual distinction
                     rx.cond(
                         ReviewState.is_correct,
-                        rx.text("✅ Correct!", size="3", weight="bold", color="green"),
-                        rx.text("❌ Incorrect", size="3", weight="bold", color="red"),
+                        rx.box(
+                            rx.vstack(
+                                rx.text("✅", size="9"),
+                                rx.heading("Correct!", size="6", color="green"),
+                                rx.text("Great job!", size="3", color="gray"),
+                                spacing="2",
+                                align="center",
+                            ),
+                            padding="2rem",
+                            background="var(--green-3)",
+                            border_radius="0.5rem",
+                            border="2px solid var(--green-7)",
+                            width="100%",
+                        ),
+                        rx.box(
+                            rx.vstack(
+                                rx.text("❌", size="9"),
+                                rx.heading("Incorrect", size="6", color="red"),
+                                rx.vstack(
+                                    rx.text("Your answer:", size="2", color="gray", weight="bold"),
+                                    rx.text(ReviewState.user_input, size="3", style={"textDecoration": "line-through"}),
+                                    rx.text("Correct answer:", size="2", color="gray", weight="bold", margin_top="0.5rem"),
+                                    rx.heading(ReviewState.current_card["back"], size="5", color="green"),
+                                    spacing="1",
+                                    align="center",
+                                ),
+                                spacing="2",
+                                align="center",
+                            ),
+                            padding="2rem",
+                            background="var(--red-3)",
+                            border_radius="0.5rem",
+                            border="2px solid var(--red-7)",
+                            width="100%",
+                        ),
                     ),
-                    # Show the correct answer
-                    rx.text("Correct answer: ", ReviewState.current_card["back"], size="3"),
-                    # Override buttons if needed
+                    # Override buttons if needed (smaller, less prominent)
+                    rx.text("Need to override the result?", size="1", color="gray", text_align="center", margin_top="1rem"),
                     rx.hstack(
-                        rx.button("Mark as Correct", on_click=ReviewState.mark_correct, size="2", color_scheme="green"),
-                        rx.button("Mark as Incorrect", on_click=ReviewState.mark_incorrect, size="2", color_scheme="red"),
+                        rx.button("Mark as Correct", on_click=ReviewState.mark_correct, size="1", color_scheme="green", variant="soft"),
+                        rx.button("Mark as Incorrect", on_click=ReviewState.mark_incorrect, size="1", color_scheme="red", variant="soft"),
                         spacing="2",
+                        justify="center",
                     ),
-                    spacing="3",
+                    spacing="2",
                     width="100%",
                     padding_top="1rem",
                 ),

@@ -7,10 +7,6 @@ from vocab_stack.pages.auth import AuthState
 class SettingsState(rx.State):
     """State for settings page."""
     
-    # Profile
-    username: str = ""
-    email: str = ""
-    
     # Preferences
     cards_per_session: int = 20
     review_order: str = "random"
@@ -41,8 +37,6 @@ class SettingsState(rx.State):
         user_id = auth.current_user_id
         settings = SettingsService.get_user_settings(user_id)
         
-        self.username = settings.get("username", auth.username)
-        self.email = settings.get("email", "")
         self.cards_per_session = settings.get("cards_per_session", 20)
         self.review_order = settings.get("review_order", "random")
         self.show_examples = settings.get("show_examples", True)
@@ -53,7 +47,7 @@ class SettingsState(rx.State):
         self.loading = False
     
     async def save_preferences(self):
-        """Save user preferences."""
+        """Save user preferences (auto-save)."""
         # Page is already protected by auth middleware
         auth = await self.get_state(AuthState)
         if not auth.current_user_id:
@@ -71,41 +65,44 @@ class SettingsState(rx.State):
         success = SettingsService.update_user_settings(auth.current_user_id, settings)
         
         if success:
-            self.success_message = "Preferences saved successfully!"
+            self.success_message = "✓ Saved"
             self.error_message = ""
         else:
             self.error_message = "Failed to save preferences"
             self.success_message = ""
     
-    async def save_profile(self):
-        """Save profile information."""
-        # Page is already protected by auth middleware
-        auth = await self.get_state(AuthState)
-        if not auth.current_user_id:
-            return
-            
-        success, message = SettingsService.update_profile(
-            auth.current_user_id,
-            username=self.username,
-            email=self.email
-        )
-        
-        if success:
-            self.success_message = message
-            self.error_message = ""
-        else:
-            self.error_message = message
-            self.success_message = ""
     
-    def update_cards_per_session(self, value: list[float]):
+    async def update_cards_per_session(self, value: list[float]):
         """Update cards per session from slider (receives list)."""
         if value:
             self.cards_per_session = int(value[0])
+            await self.save_preferences()
     
-    def update_daily_goal(self, value: list[float]):
+    async def update_daily_goal(self, value: list[float]):
         """Update daily goal from slider (receives list)."""
         if value:
             self.daily_goal = int(value[0])
+            await self.save_preferences()
+    
+    async def set_review_order(self, value: str):
+        """Set review order and auto-save."""
+        self.review_order = value
+        await self.save_preferences()
+    
+    async def set_show_examples(self, value: bool):
+        """Set show examples and auto-save."""
+        self.show_examples = value
+        await self.save_preferences()
+    
+    async def set_answer_mode(self, value: str):
+        """Set answer mode and auto-save."""
+        self.answer_mode = value
+        await self.save_preferences()
+    
+    async def set_theme(self, value: str):
+        """Set theme and auto-save."""
+        self.theme = value
+        await self.save_preferences()
 
 
 def settings_section(title: str, content: rx.Component) -> rx.Component:
@@ -117,46 +114,6 @@ def settings_section(title: str, content: rx.Component) -> rx.Component:
             content,
             spacing="4",
             align="start",
-        ),
-    )
-
-
-def profile_section() -> rx.Component:
-    """Profile settings section."""
-    return settings_section(
-        "Profile",
-        rx.vstack(
-            rx.vstack(
-                rx.text("Username", weight="bold", size="2"),
-                rx.input(
-                    value=SettingsState.username,
-                    on_change=SettingsState.set_username,
-                    placeholder="Enter username",
-                    width="100%",
-                ),
-                spacing="1",
-                align="start",
-            ),
-            rx.vstack(
-                rx.text("Email", weight="bold", size="2"),
-                rx.input(
-                    value=SettingsState.email,
-                    on_change=SettingsState.set_email,
-                    placeholder="Enter email",
-                    type="email",
-                    width="100%",
-                ),
-                spacing="1",
-                align="start",
-            ),
-            rx.button(
-                "Save Profile",
-                on_click=SettingsState.save_profile,
-                width="150px",
-            ),
-            spacing="3",
-            align="start",
-            width="100%",
         ),
     )
 
@@ -239,10 +196,11 @@ def review_preferences_section() -> rx.Component:
                 spacing="1",
                 align="start",
             ),
-            rx.button(
-                "Save Preferences",
-                on_click=SettingsState.save_preferences,
-                width="150px",
+            rx.text(
+                "All changes are saved automatically",
+                size="1",
+                color="gray",
+                style={"font-style": "italic"}
             ),
             spacing="4",
             align="start",
@@ -264,9 +222,15 @@ def appearance_section() -> rx.Component:
                     on_change=SettingsState.set_theme,
                     width="200px",
                 ),
-                rx.text("Note: Theme will apply on next page load", size="1", color="gray"),
+                rx.text("Theme will apply on next page load", size="1", color="gray"),
                 spacing="1",
                 align="start",
+            ),
+            rx.text(
+                "Changes are saved automatically",
+                size="1",
+                color="gray",
+                style={"font-style": "italic"}
             ),
             spacing="3",
             align="start",
@@ -302,7 +266,6 @@ def settings_page() -> rx.Component:
             SettingsState.loading,
             rx.spinner(size="3"),
             rx.vstack(
-                profile_section(),
                 review_preferences_section(),
                 appearance_section(),
                 spacing="4",
