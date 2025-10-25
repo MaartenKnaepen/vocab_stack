@@ -23,6 +23,7 @@ class SettingsService:
                 "show_examples": user.show_examples,
                 "theme": user.theme,
                 "daily_goal": user.daily_goal,
+                "answer_mode": user.answer_mode,
             }
     
     @staticmethod
@@ -49,6 +50,9 @@ class SettingsService:
                 
                 if "daily_goal" in settings:
                     user.daily_goal = settings["daily_goal"]
+                
+                if "answer_mode" in settings:
+                    user.answer_mode = settings["answer_mode"]
                 
                 session.add(user)
                 session.commit()

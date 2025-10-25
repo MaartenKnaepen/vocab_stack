@@ -37,7 +37,7 @@ class StatsState(rx.State):
     
     loading: bool = False
     
-    def on_mount(self):
+    async def on_mount(self):
         """Load statistics on page mount."""
         self.load_statistics()
     

@@ -10,7 +10,14 @@ class User(rx.Model, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     email: str = Field(unique=True)
+    password_hash: str  # Hashed password
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Session management
+    session_token: Optional[str] = None
+    token_expires: Optional[datetime] = None
+    is_admin: bool = Field(default=False)
+    last_login: Optional[datetime] = None
     
     # Preferences
     cards_per_session: int = Field(default=20, ge=5, le=100)
@@ -18,6 +25,7 @@ class User(rx.Model, table=True):
     show_examples: bool = Field(default=True)
     theme: str = Field(default="light")  # light, dark
     daily_goal: int = Field(default=50, ge=10, le=200)
+    answer_mode: str = Field(default="reveal")  # reveal, type
     
     # Relationships
     flashcards: List["Flashcard"] = Relationship(back_populates="user")

@@ -33,7 +33,7 @@ class CardState(rx.State):
     has_cards: bool = False
     topic_names: list[str] = []
     
-    def on_mount(self):
+    async def on_mount(self):
         """Load data on page mount."""
         self.load_topics()
         self.load_cards()

@@ -24,7 +24,7 @@ class TopicState(rx.State):
     error_message: str = ""
     has_topics: bool = False
     
-    def on_mount(self):
+    async def on_mount(self):
         """Load topics on page mount."""
         self.load_topics()
     

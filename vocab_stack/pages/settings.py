@@ -1,6 +1,7 @@
 """Settings and preferences page."""
 import reflex as rx
 from vocab_stack.services.settings_service import SettingsService
+from vocab_stack.pages.auth import AuthState
 
 
 class SettingsState(rx.State):
@@ -16,45 +17,58 @@ class SettingsState(rx.State):
     show_examples: bool = True
     theme: str = "light"
     daily_goal: int = 50
+    answer_mode: str = "reveal"
     
     # UI state
     loading: bool = False
     success_message: str = ""
     error_message: str = ""
     
-    def on_mount(self):
+    async def on_mount(self):
         """Load settings on page mount."""
-        self.load_settings()
+        await self.load_settings()
     
-    def load_settings(self):
+    async def load_settings(self):
         """Load user settings."""
+        # Page is already protected by auth middleware, so user must be logged in
+        auth = await self.get_state(AuthState)
+        if not auth.current_user_id:
+            return
+            
         self.loading = True
         
-        # User ID hardcoded to 1 for demo
-        user_id = 1
+        # Use current user's ID
+        user_id = auth.current_user_id
         settings = SettingsService.get_user_settings(user_id)
         
-        self.username = settings.get("username", "")
+        self.username = settings.get("username", auth.username)
         self.email = settings.get("email", "")
         self.cards_per_session = settings.get("cards_per_session", 20)
         self.review_order = settings.get("review_order", "random")
         self.show_examples = settings.get("show_examples", True)
         self.theme = settings.get("theme", "light")
         self.daily_goal = settings.get("daily_goal", 50)
+        self.answer_mode = settings.get("answer_mode", "reveal")
         
         self.loading = False
     
-    def save_preferences(self):
+    async def save_preferences(self):
         """Save user preferences."""
+        # Page is already protected by auth middleware
+        auth = await self.get_state(AuthState)
+        if not auth.current_user_id:
+            return
+            
         settings = {
             "cards_per_session": self.cards_per_session,
             "review_order": self.review_order,
             "show_examples": self.show_examples,
             "theme": self.theme,
             "daily_goal": self.daily_goal,
+            "answer_mode": self.answer_mode,
         }
         
-        success = SettingsService.update_user_settings(1, settings)
+        success = SettingsService.update_user_settings(auth.current_user_id, settings)
         
         if success:
             self.success_message = "Preferences saved successfully!"
@@ -63,10 +77,15 @@ class SettingsState(rx.State):
             self.error_message = "Failed to save preferences"
             self.success_message = ""
     
-    def save_profile(self):
+    async def save_profile(self):
         """Save profile information."""
+        # Page is already protected by auth middleware
+        auth = await self.get_state(AuthState)
+        if not auth.current_user_id:
+            return
+            
         success, message = SettingsService.update_profile(
-            1,
+            auth.current_user_id,
             username=self.username,
             email=self.email
         )
@@ -199,6 +218,26 @@ def review_preferences_section() -> rx.Component:
                 ),
                 rx.text("Show examples during review", size="2"),
                 spacing="2",
+            ),
+            rx.vstack(
+                rx.text("Answer Mode", weight="bold", size="2"),
+                rx.select(
+                    ["reveal", "type"],
+                    value=SettingsState.answer_mode,
+                    on_change=SettingsState.set_answer_mode,
+                    width="200px",
+                ),
+                rx.text(
+                    rx.cond(
+                        SettingsState.answer_mode == "reveal",
+                        "Click to reveal answer (easier)",
+                        "Type answer for automatic checking (harder)"
+                    ),
+                    size="1",
+                    color="gray"
+                ),
+                spacing="1",
+                align="start",
             ),
             rx.button(
                 "Save Preferences",
