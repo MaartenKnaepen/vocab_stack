@@ -18,7 +18,8 @@ class LeitnerService:
         
         Args:
             topic_id: Filter by topic (optional)
-            user_id: Filter by user (optional)
+            user_id: Filter by user (optional) - NOTE: If topic_id is specified, user_id is ignored
+                     to allow users to review all cards in a topic
             review_order: Order of cards - "random", "oldest_first", "newest_first" (default: "random")
             
         Returns:
@@ -38,9 +39,10 @@ class LeitnerService:
             conditions = [LeitnerState.next_review_date <= date.today()]
             
             if topic_id is not None:
+                # When reviewing by topic, show all cards in that topic (regardless of owner)
                 conditions.append(Flashcard.topic_id == topic_id)
-            
-            if user_id is not None:
+            elif user_id is not None:
+                # When no topic specified, only show user's own cards
                 conditions.append(Flashcard.user_id == user_id)
             
             query = query.where(and_(*conditions))

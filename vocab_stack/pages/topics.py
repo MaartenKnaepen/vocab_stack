@@ -144,6 +144,13 @@ class TopicState(rx.State):
         self.confirm_delete_topic_name = ""
         self.confirm_delete_card_count = 0
     
+    async def add_to_review(self, topic_id: int):
+        """Add this topic's cards to review and navigate to review page."""
+        from vocab_stack.pages.review import ReviewState
+        review_state = await self.get_state(ReviewState)
+        review_state.set_topic_for_review(topic_id)
+        return rx.redirect("/review")
+    
     def delete_topic_confirmed(self):
         """Delete a topic and all its associated cards."""
         topic_id = self.confirm_delete_topic_id
@@ -249,6 +256,13 @@ def topic_row(topic: dict) -> rx.Component:
                             topic["description"],
                         ),
                         size="2",
+                        variant="soft",
+                    ),
+                    rx.button(
+                        "Add to Review",
+                        on_click=lambda: TopicState.add_to_review(topic["id"]),
+                        size="2",
+                        color_scheme="green",
                         variant="soft",
                     ),
                     rx.button(

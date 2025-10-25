@@ -23,6 +23,9 @@ class ReviewState(rx.State):
     user_input: str = ""
     answer_checked: bool = False
     is_correct: bool = False
+    
+    # Topic filtering
+    selected_topic_id: int | None = None
 
     @rx.var
     def current_card(self) -> dict:
@@ -52,8 +55,9 @@ class ReviewState(rx.State):
         if not auth.current_user_id:
             return rx.redirect("/")
         
+        # Always load cards - use selected_topic_id if set
         self.load_user_preferences(auth.current_user_id)
-        self.load_review_cards(auth.current_user_id)
+        self.load_review_cards(auth.current_user_id, topic_id=self.selected_topic_id)
     
     def load_user_preferences(self, user_id: int):
         """Load user preferences from settings."""
@@ -66,6 +70,8 @@ class ReviewState(rx.State):
 
     def load_review_cards(self, user_id: int, topic_id: int | None = None):
         self.loading = True
+        # Store the selected topic for later reloads
+        self.selected_topic_id = topic_id
         # Get due cards with user's preferred order, limited by cards_per_session
         all_cards = LeitnerService.get_due_cards(
             topic_id=topic_id,
@@ -79,6 +85,10 @@ class ReviewState(rx.State):
         self.correct_count = 0
         self.incorrect_count = 0
         self.loading = False
+    
+    def set_topic_for_review(self, topic_id: int):
+        """Set the topic to review (called before navigation)."""
+        self.selected_topic_id = topic_id
 
     def flip_card(self):
         self.show_answer = not self.show_answer
