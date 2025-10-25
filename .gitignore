@@ -210,3 +210,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+docs/AUTH_IMPLEMENTATION_STATUS.md
+.gitignore
+docs/AUTH_PROGRESS_UPDATE.md
+.gitignore
+.gitignore

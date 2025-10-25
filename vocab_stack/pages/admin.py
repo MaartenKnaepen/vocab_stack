@@ -229,5 +229,5 @@ def register_admin_routes(app):
         lambda: require_auth(require_admin(admin_dashboard_page))(),
         route="/admin",
         title="Admin Dashboard - Vocab App",
-        on_load=AdminState.on_mount,
+        on_load=[AuthState.on_load, AdminState.on_mount],
     )

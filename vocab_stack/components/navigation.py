@@ -9,7 +9,7 @@ def navbar() -> rx.Component:
             rx.heading("Vocab App", size="6"),
             rx.spacer(),
             rx.hstack(
-                rx.link(rx.button("Dashboard", variant="soft", size="2"), href="/"),
+                rx.link(rx.button("Dashboard", variant="soft", size="2"), href="/dashboard"),
                 rx.link(rx.button("Review", variant="soft", size="2"), href="/review"),
                 rx.link(rx.button("Topics", variant="soft", size="2"), href="/topics"),
                 rx.link(rx.button("Cards", variant="soft", size="2"), href="/cards"),

@@ -61,42 +61,42 @@ app.add_page(
     lambda: layout(require_auth(dashboard_page)()),
     route="/dashboard",
     title="Dashboard - Vocab App",
-    on_load=DashboardState.on_mount,
+    on_load=[AuthState.on_load, DashboardState.on_mount],
 )
 
 app.add_page(
     lambda: layout(require_auth(review_page)()),
     route="/review",
     title="Review - Vocab App",
-    on_load=ReviewState.on_mount,
+    on_load=[AuthState.on_load, ReviewState.on_mount],
 )
 
 app.add_page(
     lambda: layout(require_auth(topics_page)()),
     route="/topics",
     title="Topics - Vocab App",
-    on_load=TopicState.on_mount,
+    on_load=[AuthState.on_load, TopicState.on_mount],
 )
 
 app.add_page(
     lambda: layout(require_auth(cards_page)()),
     route="/cards",
     title="Flashcards - Vocab App",
-    on_load=CardState.on_mount,
+    on_load=[AuthState.on_load, CardState.on_mount],
 )
 
 app.add_page(
     lambda: layout(require_auth(statistics_page)()),
     route="/statistics",
     title="Statistics - Vocab App",
-    on_load=StatsState.on_mount,
+    on_load=[AuthState.on_load, StatsState.on_mount],
 )
 
 app.add_page(
     lambda: layout(require_auth(settings_page)()),
     route="/settings",
     title="Settings - Vocab App",
-    on_load=SettingsState.on_mount,
+    on_load=[AuthState.on_load, SettingsState.on_mount],
 )
 
 # Register admin routes
