@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from vocab_stack.database import get_session, create_db_and_tables, drop_all_tables
 from vocab_stack.models import User, Topic, Flashcard, LeitnerState
 from vocab_stack.services.leitner_service import LeitnerService
+from vocab_stack.services.auth_service import AuthService
 from vocab_stack.utils.date_helpers import (
     calculate_next_review_date,
     get_review_interval,
@@ -19,11 +20,10 @@ def setup_test_data():
     drop_all_tables()
     create_db_and_tables()
     
+    # Create user with proper password
+    _, _, user = AuthService.register_user("test_leitner", "leitner@test.com", "password123")
+    
     with get_session() as session:
-        # Create user
-        user = User(username="test_leitner", email="leitner@test.com")
-        session.add(user)
-        session.flush()
         
         # Create topic
         topic = Topic(name="Leitner Test Topic")

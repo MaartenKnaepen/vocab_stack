@@ -61,7 +61,7 @@ def import_from_csv(csv_file: str, user_id: int = 1) -> int:
                         ).first()
                         
                         if not topic:
-                            topic = Topic(name=topic_name, description=f"Imported from CSV")
+                            topic = Topic(name=topic_name, description="Imported from CSV")
                             session.add(topic)
                             session.flush()
                             print(f"   Created topic: {topic_name}")

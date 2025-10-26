@@ -1,9 +1,6 @@
 import reflex as rx
 from sqlmodel import select
-from typing import List
-from vocab_stack.models import Flashcard, LeitnerState, User, Topic
-from vocab_stack.database import get_session
-from vocab_stack.services.statistics_service import StatisticsService
+from vocab_stack.models import Flashcard, Topic
 from vocab_stack.services.leitner_service import LeitnerService
 from vocab_stack.pages.auth import AuthState
 
@@ -37,8 +34,6 @@ class DashboardState(rx.State):
         
         # Get user-specific data
         with rx.session() as session:
-            # Get all topics where the user has flashcards
-            from sqlmodel import func
             
             # Get all topics for this user's flashcards
             flashcards = session.exec(

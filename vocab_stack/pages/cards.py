@@ -168,10 +168,27 @@ class CardState(rx.State):
         self.load_cards(self.selected_topic_id if self.selected_topic_id > 0 else None)
     
     def delete_card(self, card_id: int):
-        """Delete a flashcard."""
+        """Delete a flashcard with cascade deletion."""
+        from vocab_stack.models import ReviewHistory
+        
         with rx.session() as session:
             card = session.get(Flashcard, card_id)
             if card:
+                # Delete LeitnerState records
+                leitner_states = session.exec(
+                    select(LeitnerState).where(LeitnerState.flashcard_id == card_id)
+                ).all()
+                for state in leitner_states:
+                    session.delete(state)
+                
+                # Delete ReviewHistory records
+                review_histories = session.exec(
+                    select(ReviewHistory).where(ReviewHistory.flashcard_id == card_id)
+                ).all()
+                for history in review_histories:
+                    session.delete(history)
+                
+                # Delete the flashcard itself
                 session.delete(card)
                 session.commit()
         

@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import List, Optional
 from sqlmodel import select, and_
 
-from vocab_stack.models import Flashcard, LeitnerState, ReviewHistory, User
+from vocab_stack.models import Flashcard, LeitnerState, ReviewHistory
 from vocab_stack.utils.date_helpers import calculate_next_review_date, is_due_for_review
 import reflex as rx
 

@@ -1,6 +1,5 @@
 """Database initialization and helper functions."""
 from sqlmodel import SQLModel, create_engine, Session
-from vocab_stack.models import User, Topic, Flashcard, LeitnerState, ReviewHistory
 import reflex as rx
 
 # Get database URL from config

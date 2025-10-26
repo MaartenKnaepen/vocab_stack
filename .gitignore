@@ -215,3 +215,12 @@ docs/AUTH_IMPLEMENTATION_STATUS.md
 docs/AUTH_PROGRESS_UPDATE.md
 .gitignore
 .gitignore
+test_vocab_stack.db
+docs/SECURITY_IMPLEMENTATION_COMPLETE.md
+docs/NEXT_STEPS_AND_RECOMMENDATIONS.md
+docs/SECURITY.md
+.gitignore
+docs/TEST_SUMMARY.md
+docs/TESTING_COMPLETE.md
+docs/TESTING_DATABASE_SAFETY.md
+scripts/create_admin.py

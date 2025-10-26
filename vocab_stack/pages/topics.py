@@ -29,6 +29,19 @@ class TopicState(rx.State):
     confirm_delete_topic_name: str = ""
     confirm_delete_card_count: int = 0
     
+    # Bulk import
+    show_bulk_import: bool = False
+    import_topic_name: str = ""
+    import_data: str = ""
+    import_success_count: int = 0
+    
+    # Reverse topic
+    show_reverse_dialog: bool = False
+    reverse_source_topic_id: int = -1
+    reverse_source_topic_name: str = ""
+    reverse_new_topic_name: str = ""
+    reverse_card_count: int = 0
+    
     async def on_mount(self):
         """Load topics on page mount."""
         self.load_topics()
@@ -151,6 +164,115 @@ class TopicState(rx.State):
         review_state.set_topic_for_review(topic_id)
         return rx.redirect("/review")
     
+    def show_bulk_import_dialog(self):
+        """Show bulk import dialog."""
+        self.show_bulk_import = True
+        self.import_topic_name = ""
+        self.import_data = ""
+        self.import_success_count = 0
+        self.error_message = ""
+    
+    def cancel_bulk_import(self):
+        """Cancel bulk import."""
+        self.show_bulk_import = False
+        self.import_topic_name = ""
+        self.import_data = ""
+        self.import_success_count = 0
+    
+    async def process_bulk_import(self):
+        """Process bulk import from pasted data."""
+        from vocab_stack.pages.auth import AuthState
+        from datetime import date
+        
+        # Get current user
+        auth = await self.get_state(AuthState)
+        if not auth.current_user_id:
+            self.error_message = "You must be logged in to import cards"
+            return
+        
+        # Validate inputs
+        if not self.import_topic_name.strip():
+            self.error_message = "Topic name is required"
+            return
+        
+        if not self.import_data.strip():
+            self.error_message = "Card data is required"
+            return
+        
+        topic_name = self.import_topic_name.strip()
+        
+        try:
+            # Parse the pasted data (CSV format: front,back per line)
+            lines = self.import_data.strip().split('\n')
+            imported_count = 0
+            
+            with rx.session() as session:
+                # Get or create topic
+                topic = session.exec(
+                    select(Topic).where(Topic.name == topic_name)
+                ).first()
+                
+                if not topic:
+                    topic = Topic(name=topic_name, description="Bulk imported")
+                    session.add(topic)
+                    session.flush()
+                
+                # Process each line
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Split by comma (simple CSV parsing)
+                    parts = [p.strip() for p in line.split(',')]
+                    
+                    if len(parts) < 2:
+                        continue  # Skip invalid lines
+                    
+                    front = parts[0]
+                    back = parts[1]
+                    
+                    if not front or not back:
+                        continue
+                    
+                    # Create flashcard
+                    card = Flashcard(
+                        front=front,
+                        back=back,
+                        topic_id=topic.id,
+                        user_id=auth.current_user_id
+                    )
+                    session.add(card)
+                    session.flush()
+                    session.refresh(card)  # Ensure card.id is populated
+                    
+                    # Create Leitner state
+                    leitner = LeitnerState(
+                        flashcard_id=card.id,
+                        box_number=1,
+                        next_review_date=date.today()
+                    )
+                    session.add(leitner)
+                    
+                    imported_count += 1
+                
+                session.commit()
+            
+            # Success
+            self.import_success_count = imported_count
+            self.error_message = ""
+            
+            # Reload topics
+            self.load_topics()
+            
+            # Close dialog after 2 seconds
+            if imported_count > 0:
+                # Keep dialog open to show success message
+                pass
+            
+        except Exception as e:
+            self.error_message = f"Import failed: {str(e)}"
+    
     def delete_topic_confirmed(self):
         """Delete a topic and all its associated cards."""
         topic_id = self.confirm_delete_topic_id
@@ -192,6 +314,113 @@ class TopicState(rx.State):
         self.confirm_delete_topic_name = ""
         self.confirm_delete_card_count = 0
         self.load_topics()
+    
+    def show_reverse_dialog(self, topic_id: int, topic_name: str):
+        """Show dialog to reverse a topic's cards."""
+        self.show_reverse_dialog = True
+        self.reverse_source_topic_id = topic_id
+        self.reverse_source_topic_name = topic_name
+        self.reverse_new_topic_name = f"{topic_name} (Reversed)"
+        self.error_message = ""
+        
+        # Count cards in this topic
+        with rx.session() as session:
+            card_count = session.exec(
+                select(Flashcard).where(Flashcard.topic_id == topic_id)
+            ).all()
+            self.reverse_card_count = len(card_count)
+    
+    def cancel_reverse(self):
+        """Cancel topic reversal."""
+        self.show_reverse_dialog = False
+        self.reverse_source_topic_id = -1
+        self.reverse_source_topic_name = ""
+        self.reverse_new_topic_name = ""
+        self.reverse_card_count = 0
+    
+    async def create_reversed_topic(self):
+        """Create a new topic with all cards reversed (front/back swapped)."""
+        from vocab_stack.pages.auth import AuthState
+        from datetime import date
+        
+        # Get current user
+        auth = await self.get_state(AuthState)
+        if not auth.current_user_id:
+            self.error_message = "You must be logged in to create reversed topics"
+            return
+        
+        # Validate new topic name
+        if not self.reverse_new_topic_name.strip():
+            self.error_message = "New topic name is required"
+            return
+        
+        new_topic_name = self.reverse_new_topic_name.strip()
+        
+        try:
+            with rx.session() as session:
+                # Check if new topic name already exists
+                existing_topic = session.exec(
+                    select(Topic).where(Topic.name == new_topic_name)
+                ).first()
+                
+                if existing_topic:
+                    self.error_message = f"Topic '{new_topic_name}' already exists"
+                    return
+                
+                # Get source topic
+                source_topic = session.get(Topic, self.reverse_source_topic_id)
+                if not source_topic:
+                    self.error_message = "Source topic not found"
+                    return
+                
+                # Create new topic
+                new_topic = Topic(
+                    name=new_topic_name,
+                    description=f"Reversed from: {source_topic.description or source_topic.name}"
+                )
+                session.add(new_topic)
+                session.flush()
+                
+                # Get all flashcards from source topic
+                source_cards = session.exec(
+                    select(Flashcard).where(Flashcard.topic_id == self.reverse_source_topic_id)
+                ).all()
+                
+                # Create reversed cards
+                for source_card in source_cards:
+                    # Create new card with front and back swapped
+                    new_card = Flashcard(
+                        front=source_card.back,  # Swap!
+                        back=source_card.front,   # Swap!
+                        example=source_card.example,
+                        topic_id=new_topic.id,
+                        user_id=auth.current_user_id
+                    )
+                    session.add(new_card)
+                    session.flush()
+                    session.refresh(new_card)
+                    
+                    # Create Leitner state for new card
+                    leitner = LeitnerState(
+                        flashcard_id=new_card.id,
+                        box_number=1,
+                        next_review_date=date.today()
+                    )
+                    session.add(leitner)
+                
+                session.commit()
+            
+            # Success - close dialog and reload
+            self.show_reverse_dialog = False
+            self.reverse_source_topic_id = -1
+            self.reverse_source_topic_name = ""
+            self.reverse_new_topic_name = ""
+            self.reverse_card_count = 0
+            self.error_message = ""
+            self.load_topics()
+            
+        except Exception as e:
+            self.error_message = f"Failed to create reversed topic: {str(e)}"
 
 
 def topic_row(topic: dict) -> rx.Component:
@@ -259,6 +488,16 @@ def topic_row(topic: dict) -> rx.Component:
                         variant="soft",
                     ),
                     rx.button(
+                        "Reverse",
+                        on_click=lambda: TopicState.show_reverse_dialog(
+                            topic["id"],
+                            topic["name"],
+                        ),
+                        size="2",
+                        color_scheme="purple",
+                        variant="soft",
+                    ),
+                    rx.button(
                         "Add to Review",
                         on_click=lambda: TopicState.add_to_review(topic["id"]),
                         size="2",
@@ -289,10 +528,18 @@ def topics_page() -> rx.Component:
             rx.heading("Topics", size="8"),
             rx.spacer(),
             rx.button(
+                "Bulk Import",
+                on_click=TopicState.show_bulk_import_dialog,
+                size="3",
+                color_scheme="blue",
+                variant="soft",
+            ),
+            rx.button(
                 "New Topic",
                 on_click=TopicState.toggle_create_form,
                 size="3",
             ),
+            spacing="2",
             width="100%",
             align="center",
         ),
@@ -307,6 +554,171 @@ def topics_page() -> rx.Component:
             ),
         ),
         
+        # Bulk import dialog
+        rx.cond(
+            TopicState.show_bulk_import,
+            rx.card(
+                rx.vstack(
+                    rx.heading("Bulk Import Cards", size="5", color="blue"),
+                    
+                    # Success message
+                    rx.cond(
+                        TopicState.import_success_count > 0,
+                        rx.callout(
+                            f"Successfully imported {TopicState.import_success_count.to_string()} cards!",
+                            icon="check",
+                            color_scheme="green",
+                        ),
+                    ),
+                    
+                    # Instructions
+                    rx.box(
+                        rx.vstack(
+                            rx.text("Format: One card per line", weight="bold", size="2"),
+                            rx.text("Each line: Front,Back", size="2"),
+                            rx.text("Example:", size="2", margin_top="0.5rem"),
+                            rx.box(
+                                rx.text("Hello,Hola", as_="div"),
+                                rx.text("Goodbye,Adiós", as_="div"),
+                                rx.text("Thank you,Gracias", as_="div"),
+                                padding="0.5rem",
+                                background="var(--gray-2)",
+                                border_radius="0.25rem",
+                                font_family="monospace",
+                                font_size="0.9em",
+                            ),
+                            spacing="1",
+                            align="start",
+                        ),
+                        padding="1rem",
+                        background="var(--gray-3)",
+                        border_radius="0.5rem",
+                        width="100%",
+                    ),
+                    
+                    # Topic name
+                    rx.vstack(
+                        rx.text("Topic Name", size="2", weight="bold"),
+                        rx.input(
+                            value=TopicState.import_topic_name,
+                            on_change=TopicState.set_import_topic_name,
+                            placeholder="e.g., Spanish Basics",
+                            width="100%",
+                        ),
+                        rx.text(
+                            "Will create topic if it doesn't exist",
+                            size="1",
+                            color="gray",
+                        ),
+                        spacing="1",
+                        width="100%",
+                    ),
+                    
+                    # Card data input
+                    rx.vstack(
+                        rx.text("Card Data", size="2", weight="bold"),
+                        rx.text_area(
+                            value=TopicState.import_data,
+                            on_change=TopicState.set_import_data,
+                            placeholder="Hello,Hola\nGoodbye,Adiós\nThank you,Gracias",
+                            rows="10",
+                            width="100%",
+                        ),
+                        spacing="1",
+                        width="100%",
+                    ),
+                    
+                    # Buttons
+                    rx.hstack(
+                        rx.button(
+                            "Cancel",
+                            on_click=TopicState.cancel_bulk_import,
+                            variant="soft",
+                            size="3",
+                        ),
+                        rx.button(
+                            "Import",
+                            on_click=TopicState.process_bulk_import,
+                            color_scheme="blue",
+                            size="3",
+                        ),
+                        spacing="3",
+                        justify="end",
+                        width="100%",
+                    ),
+                    
+                    spacing="4",
+                    align="start",
+                    width="100%",
+                ),
+                width="100%",
+            ),
+        ),
+        
+        # Reverse topic dialog
+        rx.cond(
+            TopicState.show_reverse_dialog,
+            rx.card(
+                rx.vstack(
+                    rx.heading("Reverse Topic Cards", size="5", color="purple"),
+                    rx.text(
+                        "Create a new topic with all cards from '",
+                        rx.text(TopicState.reverse_source_topic_name, weight="bold", as_="span"),
+                        "' reversed (front ↔ back).",
+                    ),
+                    rx.cond(
+                        TopicState.reverse_card_count > 0,
+                        rx.callout(
+                            rx.text(
+                                "This will create ",
+                                rx.text(TopicState.reverse_card_count.to_string(), weight="bold", as_="span"),
+                                " new flashcard(s) with front and back swapped.",
+                            ),
+                            icon="info",
+                            color_scheme="blue",
+                        ),
+                        rx.callout(
+                            "This topic has no flashcards to reverse.",
+                            icon="triangle_alert",
+                            color_scheme="orange",
+                        ),
+                    ),
+                    rx.vstack(
+                        rx.text("New Topic Name", size="2", weight="bold"),
+                        rx.input(
+                            value=TopicState.reverse_new_topic_name,
+                            on_change=TopicState.set_reverse_new_topic_name,
+                            placeholder="e.g., Spanish Basics (Reversed)",
+                            width="100%",
+                        ),
+                        spacing="1",
+                        width="100%",
+                    ),
+                    rx.hstack(
+                        rx.button(
+                            "Cancel",
+                            on_click=TopicState.cancel_reverse,
+                            variant="soft",
+                            size="3",
+                        ),
+                        rx.button(
+                            "Create Reversed Topic",
+                            on_click=TopicState.create_reversed_topic,
+                            color_scheme="purple",
+                            size="3",
+                            disabled=TopicState.reverse_card_count == 0,
+                        ),
+                        spacing="3",
+                        justify="end",
+                        width="100%",
+                    ),
+                    spacing="4",
+                    align="start",
+                    width="100%",
+                ),
+            ),
+        ),
+        
         # Delete confirmation dialog
         rx.cond(
             TopicState.confirm_delete_topic_id != -1,
@@ -314,7 +726,7 @@ def topics_page() -> rx.Component:
                 rx.vstack(
                     rx.heading("Confirm Delete", size="5", color="red"),
                     rx.text(
-                        f"Are you sure you want to delete the topic '",
+                        "Are you sure you want to delete the topic '",
                         rx.text(TopicState.confirm_delete_topic_name, weight="bold", as_="span"),
                         "'?",
                     ),

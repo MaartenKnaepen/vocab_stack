@@ -5,6 +5,12 @@ from typing import Optional
 import bcrypt
 from vocab_stack.database import get_session
 from vocab_stack.models import User
+from vocab_stack.security import (
+    login_rate_limiter, 
+    generate_secure_token, 
+    validate_password_strength, 
+    sanitize_input
+)
 from sqlmodel import select
 
 
@@ -29,7 +35,7 @@ class AuthService:
     @staticmethod
     def create_session_token(user_id: int) -> str:
         """Generate and store a session token for the user."""
-        token = secrets.token_urlsafe(32)
+        token = generate_secure_token(32)
         expires = datetime.utcnow() + timedelta(days=30)
         
         with get_session() as session:
@@ -78,15 +84,21 @@ class AuthService:
         Returns:
             (success: bool, message: str, user: Optional[User])
         """
+        # Sanitize inputs
+        username = sanitize_input(username, max_length=50)
+        email = sanitize_input(email, max_length=255)
+        
         # Validate inputs
-        if not username or not username.strip():
+        if not username:
             return False, "Username is required", None
         
-        if not email or not email.strip():
+        if not email:
             return False, "Email is required", None
         
-        if not password or len(password) < 6:
-            return False, "Password must be at least 6 characters", None
+        # Validate password strength
+        is_valid, error_msg = validate_password_strength(password)
+        if not is_valid:
+            return False, error_msg, None
         
         with get_session() as session:
             # Check if username exists
@@ -121,7 +133,7 @@ class AuthService:
     @staticmethod
     def login_user(username: str, password: str) -> tuple[bool, str, Optional[User]]:
         """
-        Authenticate a user.
+        Authenticate a user with rate limiting.
         
         Returns:
             (success: bool, message: str, user: Optional[User])
@@ -129,19 +141,33 @@ class AuthService:
         if not username or not password:
             return False, "Username and password are required", None
         
+        # Check rate limiting
+        is_locked, remaining_seconds = login_rate_limiter.is_locked_out(username)
+        if is_locked:
+            minutes = remaining_seconds // 60
+            seconds = remaining_seconds % 60
+            return False, f"Too many failed attempts. Try again in {minutes}m {seconds}s", None
+        
         with get_session() as session:
             user = session.exec(
                 select(User).where(User.username == username)
             ).first()
             
             if not user:
+                # Record failed attempt
+                login_rate_limiter.record_attempt(username, success=False)
                 return False, "Invalid username or password", None
             
             if not user.password_hash:
                 return False, "Account not properly configured", None
             
             if not AuthService.verify_password(password, user.password_hash):
+                # Record failed attempt
+                login_rate_limiter.record_attempt(username, success=False)
                 return False, "Invalid username or password", None
+            
+            # Record successful attempt (clears rate limiting)
+            login_rate_limiter.record_attempt(username, success=True)
             
             return True, "Login successful", user
     

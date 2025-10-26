@@ -1,6 +1,6 @@
 """Statistics and analytics service."""
 from datetime import datetime, date, timedelta
-from typing import Dict, List
+from typing import List
 from sqlmodel import select, func, and_
 from sqlalchemy import Integer
 from vocab_stack.models import ReviewHistory, Flashcard, LeitnerState, Topic
