@@ -9,6 +9,10 @@ from datetime import date
 class CardState(rx.State):
     """State for card management."""
     
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
+    
     cards: list[dict] = []
     topics: list[dict] = []
     selected_topic_id: int = -1

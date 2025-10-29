@@ -5,6 +5,10 @@ import reflex as rx
 
 class AuthState(rx.State):
     """Authentication state for managing user login/registration."""
+    
+    # Config to enable auto-generated setters (will be deprecated in future)
+    class Config:
+        state_auto_setters = True
 
     # Form fields
     username_input: str = ""

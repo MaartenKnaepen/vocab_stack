@@ -5,6 +5,10 @@ from vocab_stack.models import Flashcard
 
 
 class ReviewState(rx.State):
+    
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
     cards_to_review: list[Flashcard] = []
     current_index: int = 0
     show_answer: bool = False

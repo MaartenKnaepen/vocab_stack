@@ -1,5 +1,5 @@
 """Security utilities for the application."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from typing import Dict, Tuple
 import secrets
@@ -27,8 +27,8 @@ class RateLimiter:
         """
         if identifier in self._lockouts:
             lockout_until = self._lockouts[identifier]
-            if datetime.utcnow() < lockout_until:
-                remaining = (lockout_until - datetime.utcnow()).seconds
+            if datetime.now(timezone.utc) < lockout_until:
+                remaining = (lockout_until - datetime.now(timezone.utc)).seconds
                 return True, remaining
             else:
                 # Lockout expired
@@ -48,7 +48,7 @@ class RateLimiter:
         Returns:
             (is_allowed, attempts_remaining)
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window_start = now - timedelta(minutes=self.window_minutes)
         
         # Clean old attempts

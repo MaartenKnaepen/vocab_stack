@@ -6,6 +6,10 @@ from vocab_stack.services.statistics_service import StatisticsService
 class StatsState(rx.State):
     """State for statistics page."""
     
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
+    
     # Overview stats
     total_cards: int = 0
     total_reviews: int = 0

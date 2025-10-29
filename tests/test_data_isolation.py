@@ -24,31 +24,38 @@ class TestDataIsolation:
         create_db_and_tables()
         
         # Create three test users
-        AuthService.register("alice", "alice@test.com", "password123")
-        AuthService.register("bob", "bob@test.com", "password123")
-        AuthService.register("charlie", "charlie@test.com", "password123")
+        success, msg, alice = AuthService.register_user("alice", "alice@test.com", "password123")
+        success, msg, bob = AuthService.register_user("bob", "bob@test.com", "password123")
+        success, msg, charlie = AuthService.register_user("charlie", "charlie@test.com", "password123")
         
         with get_session() as session:
-            cls.alice = session.exec(select(User).where(User.username == "alice")).first()
-            cls.bob = session.exec(select(User).where(User.username == "bob")).first()
-            cls.charlie = session.exec(select(User).where(User.username == "charlie")).first()
+            alice = session.exec(select(User).where(User.username == "alice")).first()
+            bob = session.exec(select(User).where(User.username == "bob")).first()
+            charlie = session.exec(select(User).where(User.username == "charlie")).first()
+            
+            cls.alice_id = alice.id
+            cls.bob_id = bob.id
+            cls.charlie_id = charlie.id
             
             # Create shared topics
-            cls.shared_topic = Topic(name="Shared Topic", description="Everyone can add cards")
-            cls.topic2 = Topic(name="Another Topic", description="Another shared topic")
-            session.add(cls.shared_topic)
-            session.add(cls.topic2)
+            shared_topic = Topic(name="Shared Topic", description="Everyone can add cards")
+            topic2 = Topic(name="Another Topic", description="Another shared topic")
+            session.add(shared_topic)
+            session.add(topic2)
             session.commit()
-            session.refresh(cls.shared_topic)
-            session.refresh(cls.topic2)
+            session.refresh(shared_topic)
+            session.refresh(topic2)
+            
+            cls.shared_topic_id = shared_topic.id
+            cls.topic2_id = topic2.id
             
             # Alice creates cards in shared topic
             for i in range(3):
                 card = Flashcard(
                     front=f"Alice's Card {i+1}",
                     back=f"Alice's Answer {i+1}",
-                    topic_id=cls.shared_topic.id,
-                    user_id=cls.alice.id
+                    topic_id=cls.shared_topic_id,
+                    user_id=cls.alice_id
                 )
                 session.add(card)
                 session.flush()
@@ -59,8 +66,8 @@ class TestDataIsolation:
                 card = Flashcard(
                     front=f"Bob's Card {i+1}",
                     back=f"Bob's Answer {i+1}",
-                    topic_id=cls.shared_topic.id,
-                    user_id=cls.bob.id
+                    topic_id=cls.shared_topic_id,
+                    user_id=cls.bob_id
                 )
                 session.add(card)
                 session.flush()
@@ -71,8 +78,8 @@ class TestDataIsolation:
                 card = Flashcard(
                     front=f"Charlie's Card {i+1}",
                     back=f"Charlie's Answer {i+1}",
-                    topic_id=cls.topic2.id,
-                    user_id=cls.charlie.id
+                    topic_id=cls.topic2_id,
+                    user_id=cls.charlie_id
                 )
                 session.add(card)
                 session.flush()
@@ -85,22 +92,22 @@ class TestDataIsolation:
         print("\n🧪 Test: User Sees Only Own Cards (No Topic Filter)")
         
         # Alice's review session
-        alice_cards = LeitnerService.get_due_cards(user_id=self.alice.id)
+        alice_cards = LeitnerService.get_due_cards(user_id=self.alice_id)
         assert len(alice_cards) == 3, f"Alice should see 3 cards, got {len(alice_cards)}"
         for card in alice_cards:
-            assert card.user_id == self.alice.id, f"Alice should only see her cards, found card from user {card.user_id}"
+            assert card.user_id == self.alice_id, f"Alice should only see her cards, found card from user {card.user_id}"
         
         # Bob's review session
-        bob_cards = LeitnerService.get_due_cards(user_id=self.bob.id)
+        bob_cards = LeitnerService.get_due_cards(user_id=self.bob_id)
         assert len(bob_cards) == 2, f"Bob should see 2 cards, got {len(bob_cards)}"
         for card in bob_cards:
-            assert card.user_id == self.bob.id, f"Bob should only see his cards, found card from user {card.user_id}"
+            assert card.user_id == self.bob_id, f"Bob should only see his cards, found card from user {card.user_id}"
         
         # Charlie's review session
-        charlie_cards = LeitnerService.get_due_cards(user_id=self.charlie.id)
+        charlie_cards = LeitnerService.get_due_cards(user_id=self.charlie_id)
         assert len(charlie_cards) == 4, f"Charlie should see 4 cards, got {len(charlie_cards)}"
         for card in charlie_cards:
-            assert card.user_id == self.charlie.id, f"Charlie should only see his cards, found card from user {card.user_id}"
+            assert card.user_id == self.charlie_id, f"Charlie should only see his cards, found card from user {card.user_id}"
         
         print(f"✅ Alice: {len(alice_cards)}, Bob: {len(bob_cards)}, Charlie: {len(charlie_cards)} cards")
     
@@ -109,16 +116,16 @@ class TestDataIsolation:
         print("\n🧪 Test: Users See All Cards in Shared Topic")
         
         # Alice reviews shared topic
-        alice_topic_cards = LeitnerService.get_due_cards(topic_id=self.shared_topic.id, user_id=self.alice.id)
-        alice_owned = sum(1 for c in alice_topic_cards if c.user_id == self.alice.id)
-        bob_owned = sum(1 for c in alice_topic_cards if c.user_id == self.bob.id)
+        alice_topic_cards = LeitnerService.get_due_cards(topic_id=self.shared_topic_id, user_id=self.alice_id)
+        alice_owned = sum(1 for c in alice_topic_cards if c.user_id == self.alice_id)
+        bob_owned = sum(1 for c in alice_topic_cards if c.user_id == self.bob_id)
         
         assert len(alice_topic_cards) == 5, f"Should see 5 cards total, got {len(alice_topic_cards)}"
         assert alice_owned == 3, f"Should see 3 of Alice's cards, got {alice_owned}"
         assert bob_owned == 2, f"Should see 2 of Bob's cards, got {bob_owned}"
         
         # Bob reviews shared topic
-        bob_topic_cards = LeitnerService.get_due_cards(topic_id=self.shared_topic.id, user_id=self.bob.id)
+        bob_topic_cards = LeitnerService.get_due_cards(topic_id=self.shared_topic_id, user_id=self.bob_id)
         assert len(bob_topic_cards) == 5, f"Bob should also see 5 cards total, got {len(bob_topic_cards)}"
         
         print(f"✅ Shared topic shows all {len(alice_topic_cards)} cards to all users")
@@ -128,27 +135,27 @@ class TestDataIsolation:
         print("\n🧪 Test: Review History Per User")
         
         # Get a card from shared topic
-        cards = LeitnerService.get_due_cards(topic_id=self.shared_topic.id, user_id=self.alice.id)
+        cards = LeitnerService.get_due_cards(topic_id=self.shared_topic_id, user_id=self.alice_id)
         shared_card = cards[0]
         
         # Alice reviews the card
-        LeitnerService.process_review(shared_card.id, user_id=self.alice.id, was_correct=True)
+        LeitnerService.process_review(shared_card.id, user_id=self.alice_id, was_correct=True)
         
         # Bob reviews the same card
-        LeitnerService.process_review(shared_card.id, user_id=self.bob.id, was_correct=False)
+        LeitnerService.process_review(shared_card.id, user_id=self.bob_id, was_correct=False)
         
         # Check that both review histories exist separately
         with get_session() as session:
             alice_review = session.exec(
                 select(ReviewHistory)
                 .where(ReviewHistory.flashcard_id == shared_card.id)
-                .where(ReviewHistory.user_id == self.alice.id)
+                .where(ReviewHistory.user_id == self.alice_id)
             ).first()
             
             bob_review = session.exec(
                 select(ReviewHistory)
                 .where(ReviewHistory.flashcard_id == shared_card.id)
-                .where(ReviewHistory.user_id == self.bob.id)
+                .where(ReviewHistory.user_id == self.bob_id)
             ).first()
             
             assert alice_review is not None, "Alice's review should exist"
@@ -162,7 +169,7 @@ class TestDataIsolation:
         """Test that Leitner state is shared (one state per card, not per user)."""
         print("\n🧪 Test: Leitner State is Shared")
         
-        cards = LeitnerService.get_due_cards(topic_id=self.shared_topic.id, user_id=self.alice.id)
+        cards = LeitnerService.get_due_cards(topic_id=self.shared_topic_id, user_id=self.alice_id)
         test_card = cards[0]
         
         # Count Leitner states for this card
@@ -181,9 +188,9 @@ class TestDataIsolation:
         print("\n🧪 Test: Statistics Per User")
         
         # Get statistics for each user
-        alice_stats = StatisticsService.get_user_overview(self.alice.id)
-        bob_stats = StatisticsService.get_user_overview(self.bob.id)
-        charlie_stats = StatisticsService.get_user_overview(self.charlie.id)
+        alice_stats = StatisticsService.get_user_overview(self.alice_id)
+        bob_stats = StatisticsService.get_user_overview(self.bob_id)
+        charlie_stats = StatisticsService.get_user_overview(self.charlie_id)
         
         # Alice should only see her stats
         assert alice_stats['total_cards'] == 3, \
@@ -208,7 +215,7 @@ class TestDataIsolation:
             # Get one of Alice's cards
             alice_card = session.exec(
                 select(Flashcard)
-                .where(Flashcard.user_id == self.alice.id)
+                .where(Flashcard.user_id == self.alice_id)
             ).first()
             
             original_front = alice_card.front
@@ -220,8 +227,8 @@ class TestDataIsolation:
             card = session.get(Flashcard, alice_card_id)
             
             # Verify ownership
-            assert card.user_id == self.alice.id, "Card should belong to Alice"
-            assert card.user_id != self.bob.id, "Card should not belong to Bob"
+            assert card.user_id == self.alice_id, "Card should belong to Alice"
+            assert card.user_id != self.bob_id, "Card should not belong to Bob"
         
         print("✅ Card ownership is correctly tracked")
     
@@ -230,7 +237,7 @@ class TestDataIsolation:
         print("\n🧪 Test: Deleting User Doesn't Affect Shared Topic")
         
         # Create a temporary user
-        AuthService.register("temp_user", "temp@test.com", "password123")
+        success, msg, user = AuthService.register_user("temp_user", "temp@test.com", "password123")
         
         with get_session() as session:
             temp_user = session.exec(select(User).where(User.username == "temp_user")).first()
@@ -240,7 +247,7 @@ class TestDataIsolation:
             card = Flashcard(
                 front="Temp User Card",
                 back="Temp Answer",
-                topic_id=self.shared_topic.id,
+                topic_id=self.shared_topic_id,
                 user_id=temp_user_id
             )
             session.add(card)
@@ -271,12 +278,12 @@ class TestDataIsolation:
         
         # Verify shared topic still exists
         with get_session() as session:
-            topic = session.get(Topic, self.shared_topic.id)
+            topic = session.get(Topic, self.shared_topic_id)
             assert topic is not None, "Shared topic should still exist"
             
             # Other users' cards should still exist
             remaining_cards = session.exec(
-                select(Flashcard).where(Flashcard.topic_id == self.shared_topic.id)
+                select(Flashcard).where(Flashcard.topic_id == self.shared_topic_id)
             ).all()
             assert len(remaining_cards) >= 5, \
                 f"Other users' cards should remain, found {len(remaining_cards)}"

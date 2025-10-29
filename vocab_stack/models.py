@@ -1,6 +1,6 @@
 """Database models for vocabulary learning app."""
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlmodel import Field, Relationship
 import reflex as rx
 

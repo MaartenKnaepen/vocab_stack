@@ -7,6 +7,10 @@ from vocab_stack.pages.auth import AuthState
 class SettingsState(rx.State):
     """State for settings page."""
     
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
+    
     # Preferences
     cards_per_session: int = 20
     review_order: str = "random"

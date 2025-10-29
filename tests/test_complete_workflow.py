@@ -8,6 +8,7 @@ from vocab_stack.models import User, Topic, Flashcard, LeitnerState, ReviewHisto
 from vocab_stack.services.leitner_service import LeitnerService
 from vocab_stack.services.statistics_service import StatisticsService
 from vocab_stack.services.settings_service import SettingsService
+from vocab_stack.services.auth_service import AuthService
 from sqlmodel import select
 
 
@@ -31,7 +32,8 @@ def test_complete_learning_workflow():
             user_id = existing.id
             print(f"   Using existing user: {user_id}")
         else:
-            user = User(username="test_workflow", email="workflow@test.com")
+            password_hash = AuthService.hash_password("testpassword123")
+            user = User(username="test_workflow", email="workflow@test.com", password_hash=password_hash)
             session.add(user)
             session.commit()
             session.refresh(user)

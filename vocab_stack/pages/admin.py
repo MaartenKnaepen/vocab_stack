@@ -11,6 +11,10 @@ from vocab_stack.pages.auth import AuthState
 class AdminState(rx.State):
     """Admin state for managing and monitoring users."""
     
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
+    
     # User management
     users: List[dict] = []
     total_users: int = 0

@@ -6,7 +6,7 @@ import reflex as rx
 DATABASE_URL = rx.config.get_config().db_url
 
 # Create engine
-engine = create_engine(DATABASE_URL, echo=True)  # echo=True for SQL logging
+engine = create_engine(DATABASE_URL)  # echo=True for SQL logging
 
 
 def create_db_and_tables():

@@ -6,6 +6,10 @@ from vocab_stack.pages.auth import AuthState
 
 
 class DashboardState(rx.State):
+    
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
     topics: list[dict] = []
     total_due: int = 0
     loading: bool = False

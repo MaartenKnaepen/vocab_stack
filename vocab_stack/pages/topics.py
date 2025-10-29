@@ -7,6 +7,10 @@ from sqlmodel import select
 class TopicState(rx.State):
     """State for topic management."""
     
+    # Config to enable auto-generated setters
+    class Config:
+        state_auto_setters = True
+    
     topics: list[dict] = []
     
     # Form fields
@@ -315,7 +319,7 @@ class TopicState(rx.State):
         self.confirm_delete_card_count = 0
         self.load_topics()
     
-    def show_reverse_dialog(self, topic_id: int, topic_name: str):
+    def open_reverse_dialog(self, topic_id: int, topic_name: str):
         """Show dialog to reverse a topic's cards."""
         self.show_reverse_dialog = True
         self.reverse_source_topic_id = topic_id
@@ -489,7 +493,7 @@ def topic_row(topic: dict) -> rx.Component:
                     ),
                     rx.button(
                         "Reverse",
-                        on_click=lambda: TopicState.show_reverse_dialog(
+                        on_click=lambda: TopicState.open_reverse_dialog(
                             topic["id"],
                             topic["name"],
                         ),

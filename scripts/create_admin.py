@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from vocab_stack.services.auth_service import AuthService
 
-def create_admin():
+def create_admin(username: str = "admin", email: str = "admin@vocab.com"):
     """Create admin user with default credentials."""
     print("Creating admin user...")
     
@@ -21,10 +21,10 @@ def create_admin():
     if success and user:
         # Promote to admin
         AuthService.promote_to_admin(user.id)
-        print(f"✅ Admin user created successfully!")
-        print(f"   Username: admin")
-        print(f"   Email: admin@vocab.com")
-        print(f"   Password: admin123")
+        print("✅ Admin user created successfully!")
+        print("   Username: admin")
+        print("   Email: admin@vocab.com")
+        print("   Password: admin123")
         print()
         print("⚠️  IMPORTANT: Please change the password after first login!")
         print("   Go to Settings after logging in.")

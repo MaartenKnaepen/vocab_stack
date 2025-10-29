@@ -1,5 +1,5 @@
 """Statistics and analytics service."""
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import List
 from sqlmodel import select, func, and_
 from sqlalchemy import Integer
@@ -25,7 +25,7 @@ class StatisticsService:
             ).one()
             
             # Reviews today
-            today = datetime.utcnow().date()
+            today = datetime.now(timezone.utc).date()
             reviews_today = session.exec(
                 select(func.count(ReviewHistory.id)).where(
                     and_(

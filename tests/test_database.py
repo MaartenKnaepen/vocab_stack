@@ -5,6 +5,7 @@ sys.path.insert(0, '.')
 
 from vocab_stack.database import get_session, create_db_and_tables, drop_all_tables
 from vocab_stack.models import User, Topic, Flashcard, LeitnerState, ReviewHistory
+from vocab_stack.services.auth_service import AuthService
 from datetime import datetime, date
 from sqlmodel import select
 
@@ -14,7 +15,8 @@ def test_create_user():
     print("\n🧪 Testing User Creation...")
     
     with get_session() as session:
-        user = User(username="test_user", email="test@test.com")
+        password_hash = AuthService.hash_password("testpassword123")
+        user = User(username="test_user", email="test@test.com", password_hash=password_hash)
         session.add(user)
         session.commit()
         session.refresh(user)  # Reload from DB to get ID

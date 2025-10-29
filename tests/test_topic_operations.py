@@ -22,27 +22,31 @@ class TestTopicOperations:
         create_db_and_tables()
         
         # Create test user
-        AuthService.register("testuser", "test@example.com", "password123")
+        success, msg, user = AuthService.register_user("testuser", "test@example.com", "password123")
         
         with get_session() as session:
-            cls.user = session.exec(select(User).where(User.username == "testuser")).first()
+            user = session.exec(select(User).where(User.username == "testuser")).first()
+            cls.user_id = user.id
+            
+            # Create a test topic
+            topic = Topic(name="Test Topic", description="A test topic")
+            session.add(topic)
+            session.commit()
+            session.refresh(topic)
+            cls.topic_id = topic.id
     
     def test_create_topic(self):
         """Test creating a topic."""
         print("\n🧪 Test: Create Topic")
         
         with get_session() as session:
-            topic = Topic(name="Test Topic", description="A test topic")
-            session.add(topic)
-            session.commit()
-            session.refresh(topic)
+            topic = session.get(Topic, self.topic_id)
             
+            assert topic is not None, "Topic should exist"
             assert topic.id is not None, "Topic should have an ID"
             assert topic.name == "Test Topic", "Topic name should match"
-            
-            self.topic_id = topic.id
         
-        print(f"✅ Created topic with ID: {self.topic_id}")
+        print(f"✅ Topic exists with ID: {self.topic_id}")
     
     def test_add_cards_to_topic(self):
         """Test adding flashcards to a topic."""
@@ -57,7 +61,7 @@ class TestTopicOperations:
                     front=f"Question {i+1}",
                     back=f"Answer {i+1}",
                     topic_id=topic.id,
-                    user_id=self.user.id
+                    user_id=self.user_id
                 )
                 session.add(card)
                 session.flush()
@@ -73,7 +77,7 @@ class TestTopicOperations:
                 # Add review history
                 review = ReviewHistory(
                     flashcard_id=card.id,
-                    user_id=self.user.id,
+                    user_id=self.user_id,
                     was_correct=True
                 )
                 session.add(review)
@@ -201,13 +205,13 @@ class TestTopicOperations:
                     front=f"Topic1 Q{i}",
                     back=f"Topic1 A{i}",
                     topic_id=topic1.id,
-                    user_id=self.user.id
+                    user_id=self.user_id
                 )
                 card2 = Flashcard(
                     front=f"Topic2 Q{i}",
                     back=f"Topic2 A{i}",
                     topic_id=topic2.id,
-                    user_id=self.user.id
+                    user_id=self.user_id
                 )
                 session.add(card1)
                 session.add(card2)

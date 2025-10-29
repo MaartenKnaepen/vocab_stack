@@ -1,5 +1,5 @@
 """Leitner spaced repetition algorithm implementation."""
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Optional
 from sqlmodel import select, and_
 
@@ -148,7 +148,7 @@ class LeitnerService:
                 leitner.box_number = 1
             
             # Update review dates
-            leitner.last_reviewed = datetime.utcnow()
+            leitner.last_reviewed = datetime.now(timezone.utc)
             leitner.next_review_date = calculate_next_review_date(
                 leitner.box_number,
                 date.today()
@@ -163,7 +163,7 @@ class LeitnerService:
                 user_id=user_id,
                 was_correct=was_correct,
                 time_spent_seconds=time_spent_seconds,
-                review_date=datetime.utcnow()
+                review_date=datetime.now(timezone.utc)
             )
             session.add(review)
             

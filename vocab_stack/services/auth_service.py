@@ -1,6 +1,6 @@
 """Authentication service for user management."""
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import bcrypt
 from vocab_stack.database import get_session
@@ -36,14 +36,14 @@ class AuthService:
     def create_session_token(user_id: int) -> str:
         """Generate and store a session token for the user."""
         token = generate_secure_token(32)
-        expires = datetime.utcnow() + timedelta(days=30)
+        expires = datetime.now(timezone.utc) + timedelta(days=30)
         
         with get_session() as session:
             user = session.get(User, user_id)
             if user:
                 user.session_token = token
                 user.token_expires = expires
-                user.last_login = datetime.utcnow()
+                user.last_login = datetime.now(timezone.utc)
                 session.add(user)
                 session.commit()
         
@@ -60,8 +60,17 @@ class AuthService:
                 select(User).where(User.session_token == token)
             ).first()
             
-            if user and user.token_expires and user.token_expires > datetime.utcnow():
-                return user
+            if user and user.token_expires:
+                # Ensure both datetimes are timezone-aware for comparison
+                now = datetime.now(timezone.utc)
+                expires = user.token_expires
+                
+                # If stored datetime is naive, make it aware (assume UTC)
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                
+                if expires > now:
+                    return user
         
         return None
     

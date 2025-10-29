@@ -21,20 +21,29 @@ class TestAdminFunctions:
         create_db_and_tables()
         
         # Create admin user
-        AuthService.register("admin", "admin@test.com", "adminpass")
+        success, msg, admin_user = AuthService.register_user("admin", "admin@test.com", "adminpass123")
+        assert success, f"Failed to create admin: {msg}"
+        assert admin_user is not None, "Admin user should not be None"
         
         # Create regular users
-        AuthService.register("user1", "user1@test.com", "password123")
-        AuthService.register("user2", "user2@test.com", "password123")
+        success, msg, user1 = AuthService.register_user("user1", "user1@test.com", "password123")
+        assert success, f"Failed to create user1: {msg}"
+        assert user1 is not None, "User1 should not be None"
         
+        success, msg, user2 = AuthService.register_user("user2", "user2@test.com", "password123")
+        assert success, f"Failed to create user2: {msg}"
+        assert user2 is not None, "User2 should not be None"
+        
+        # Store IDs from returned users
+        cls.admin_id = admin_user.id
+        cls.user1_id = user1.id
+        cls.user2_id = user2.id
+        
+        # Set admin flag
         with get_session() as session:
-            cls.admin = session.exec(select(User).where(User.username == "admin")).first()
-            cls.admin.is_admin = True
-            session.add(cls.admin)
-            
-            cls.user1 = session.exec(select(User).where(User.username == "user1")).first()
-            cls.user2 = session.exec(select(User).where(User.username == "user2")).first()
-            
+            admin = session.get(User, cls.admin_id)
+            admin.is_admin = True
+            session.add(admin)
             session.commit()
     
     def test_admin_flag_set_correctly(self):
@@ -42,8 +51,8 @@ class TestAdminFunctions:
         print("\n🧪 Test: Admin Flag")
         
         with get_session() as session:
-            admin = session.get(User, self.admin.id)
-            user1 = session.get(User, self.user1.id)
+            admin = session.get(User, self.admin_id)
+            user1 = session.get(User, self.user1_id)
             
             assert admin.is_admin == True, "Admin should have admin flag"
             assert user1.is_admin == False, "Regular user should not have admin flag"
@@ -55,7 +64,7 @@ class TestAdminFunctions:
         print("\n🧪 Test: Grant Admin Privileges")
         
         with get_session() as session:
-            user = session.get(User, self.user1.id)
+            user = session.get(User, self.user1_id)
             
             # Grant admin
             user.is_admin = True
@@ -72,7 +81,7 @@ class TestAdminFunctions:
         print("\n🧪 Test: Revoke Admin Privileges")
         
         with get_session() as session:
-            user = session.get(User, self.user1.id)
+            user = session.get(User, self.user1_id)
             
             # Revoke admin
             user.is_admin = False
@@ -91,7 +100,7 @@ class TestAdminFunctions:
         new_password = "newpassword123"
         
         with get_session() as session:
-            user = session.get(User, self.user2.id)
+            user = session.get(User, self.user2_id)
             
             # Reset password
             user.password_hash = AuthService.hash_password(new_password)
@@ -99,11 +108,11 @@ class TestAdminFunctions:
             session.commit()
         
         # Test login with new password
-        success, message, user_data = AuthService.login("user2", new_password)
+        success, message, user_data = AuthService.login_user("user2", new_password)
         assert success, f"Login with new password should work: {message}"
         
         # Old password should not work
-        success, message, user_data = AuthService.login("user2", "password123")
+        success, message, user_data = AuthService.login_user("user2", "password123")
         assert not success, "Old password should not work"
         
         print("✅ Password reset successfully")
@@ -113,7 +122,7 @@ class TestAdminFunctions:
         print("\n🧪 Test: Delete User with Data")
         
         # Create a user with cards
-        AuthService.register("delete_me", "delete@test.com", "password123")
+        success, msg, user = AuthService.register_user("delete_me", "delete@test.com", "password123")
         
         with get_session() as session:
             user = session.exec(select(User).where(User.username == "delete_me")).first()
@@ -229,7 +238,7 @@ class TestAdminFunctions:
                     front=f"Card {i}",
                     back=f"Answer {i}",
                     topic_id=topic.id,
-                    user_id=self.user1.id
+                    user_id=self.user1_id
                 )
                 session.add(card)
             
@@ -238,7 +247,7 @@ class TestAdminFunctions:
         # Admin views user1's statistics
         with get_session() as session:
             user1_cards = session.exec(
-                select(Flashcard).where(Flashcard.user_id == self.user1.id)
+                select(Flashcard).where(Flashcard.user_id == self.user1_id)
             ).all()
             
             card_count = len(user1_cards)
@@ -252,7 +261,7 @@ class TestAdminFunctions:
         
         # This is a business logic test - in the real app, this would be prevented in the UI
         # Here we just verify we can detect it
-        admin_id = self.admin.id
+        admin_id = self.admin_id
         
         # Attempting to delete self should be caught by checking admin_id == current_user_id
         is_self_delete = (admin_id == admin_id)

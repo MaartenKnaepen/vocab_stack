@@ -7,7 +7,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Set test database before importing anything else
-os.environ["DATABASE_URL"] = "sqlite:///test_vocab_stack.db"
+# CRITICAL: Reflex uses REFLEX_DB_URL, not DATABASE_URL!
+os.environ["REFLEX_DB_URL"] = "sqlite:///test_vocab_stack.db"
 
 import pytest
 from vocab_stack.database import create_db_and_tables, drop_all_tables
