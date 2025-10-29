@@ -1,0 +1,42 @@
+# Render.com deployment configuration
+# This file enables one-click deployment from GitHub
+
+services:
+  # Web service
+  - type: web
+    name: vocab-stack
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: "pip install uv && uv sync --frozen && uv run reflex init && uv run reflex export --frontend-only --no-zip"
+    startCommand: "uv run alembic upgrade head && uv run reflex run --env prod --loglevel info"
+    
+    # Environment variables
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: DATABASE_URL
+        value: "sqlite:////data/vocab_stack.db"
+      - key: ENV
+        value: production
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true  # Render auto-generates a secure value
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set manually in Render dashboard after first deploy
+    
+    # Persistent disk for SQLite database
+    disk:
+      name: vocab-data
+      mountPath: /data
+      sizeGB: 1
+    
+    # Health check
+    healthCheckPath: /
+    
+    # Auto-deploy on push
+    autoDeploy: true
+
+# Note: On free tier, the service will spin down after 15 minutes of inactivity
+# First request after spin-down will take ~30 seconds (cold start)

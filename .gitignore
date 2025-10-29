@@ -224,3 +224,7 @@ docs/TEST_SUMMARY.md
 docs/TESTING_COMPLETE.md
 docs/TESTING_DATABASE_SAFETY.md
 scripts/create_admin.py
+DEPLOY_TO_RENDER.md
+.gitignore
+.gitignore
+.env.render

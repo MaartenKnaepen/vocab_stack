@@ -1,0 +1,51 @@
+# Alternative Dockerfile for Render (if using Docker deployment instead of native Python)
+# Use this if the native Python buildpack doesn't work well with Reflex
+
+FROM python:3.11-slim-bookworm
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    ENV=production
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy application code
+COPY . .
+
+# Create data directory
+RUN mkdir -p /data
+
+# Initialize Reflex and build frontend
+RUN uv run reflex init
+RUN uv run reflex export --frontend-only --no-zip
+
+# Expose port (Render sets PORT env var)
+EXPOSE 8000
+
+# Startup script
+RUN echo '#!/bin/sh\n\
+set -e\n\
+echo "Running database migrations..."\n\
+uv run alembic upgrade head\n\
+echo "Starting Reflex application..."\n\
+uv run reflex run --env prod --loglevel info\n' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
