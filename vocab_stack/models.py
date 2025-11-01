@@ -11,7 +11,7 @@ class User(rx.Model, table=True):
     username: str = Field(index=True, unique=True)
     email: str = Field(unique=True)
     password_hash: str  # Hashed password
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Session management
     session_token: Optional[str] = None
@@ -36,7 +36,7 @@ class Topic(rx.Model, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)
     description: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Relationships
     flashcards: List["Flashcard"] = Relationship(back_populates="topic")
@@ -48,7 +48,7 @@ class Flashcard(rx.Model, table=True):
     front: str  # Question/word
     back: str   # Answer/definition
     example: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Foreign Keys
     topic_id: int = Field(foreign_key="topic.id")
@@ -80,7 +80,7 @@ class LeitnerState(rx.Model, table=True):
 class ReviewHistory(rx.Model, table=True):
     """Historical record of each review session."""
     id: Optional[int] = Field(default=None, primary_key=True)
-    review_date: datetime = Field(default_factory=datetime.utcnow)
+    review_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     was_correct: bool
     time_spent_seconds: Optional[int] = Field(default=None, ge=0)
     

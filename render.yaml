@@ -9,14 +9,14 @@ services:
     plan: free
     branch: main
     buildCommand: "pip install uv && uv sync --frozen && uv run reflex init && uv run reflex export --frontend-only --no-zip"
-    startCommand: "mkdir -p /data && uv run python scripts/init_database.py && uv run alembic stamp head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --loglevel info"
+    startCommand: "uv run alembic upgrade head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --loglevel info"
     
     # Environment variables
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
       - key: DATABASE_URL
-        value: "sqlite:////data/vocab_stack.db"
+        sync: false  # Set manually in Render dashboard with Supabase PostgreSQL connection string
       - key: ENV
         value: production
       - key: ENVIRONMENT
@@ -25,12 +25,6 @@ services:
         generateValue: true  # Render auto-generates a secure value
       - key: ALLOWED_ORIGINS
         sync: false  # Set manually in Render dashboard after first deploy
-    
-    # Persistent disk for SQLite database
-    disk:
-      name: vocab-data
-      mountPath: /data
-      sizeGB: 1
     
     # Health check
     healthCheckPath: /
