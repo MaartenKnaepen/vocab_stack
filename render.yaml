@@ -8,8 +8,8 @@ services:
     runtime: python
     plan: free
     branch: main
-    buildCommand: "pip install uv && uv sync --frozen && uv run reflex init && uv run reflex export --frontend-only --no-zip"
-    startCommand: "uv run alembic upgrade head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --backend-only --loglevel info"
+    buildCommand: "pip install uv && uv sync --frozen && uv run reflex init"
+    startCommand: "uv run alembic upgrade head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --single-port --loglevel info"
     
     # Environment variables
     envVars:
