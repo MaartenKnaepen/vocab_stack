@@ -9,7 +9,7 @@ services:
     plan: free
     branch: main
     buildCommand: "pip install uv && uv sync --frozen && uv run reflex init && uv run reflex export --frontend-only --no-zip"
-    startCommand: "uv run python scripts/init_database.py && uv run alembic stamp head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --loglevel info"
+    startCommand: "mkdir -p /data && uv run python scripts/init_database.py && uv run alembic stamp head && uv run python scripts/create_admin.py || true && uv run reflex run --env prod --loglevel info"
     
     # Environment variables
     envVars:
