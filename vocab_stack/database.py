@@ -5,8 +5,18 @@ import reflex as rx
 # Get database URL from config
 DATABASE_URL = rx.config.get_config().db_url
 
-# Create engine
-engine = create_engine(DATABASE_URL)  # echo=True for SQL logging
+# Create engine with connection pool settings for cloud databases
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Verify connections before using them
+    pool_recycle=300,  # Recycle connections after 5 minutes
+    pool_size=5,  # Maximum number of connections in the pool
+    max_overflow=10,  # Maximum overflow connections
+    connect_args={
+        "connect_timeout": 10,  # Connection timeout in seconds
+        "options": "-c statement_timeout=30000"  # Query timeout (30 seconds)
+    } if DATABASE_URL and "postgresql" in DATABASE_URL else {}
+)
 
 
 def create_db_and_tables():
