@@ -19,6 +19,9 @@ class AuthState(rx.State):
     # Error messages
     error_message: str = ""
     success_message: str = ""
+    
+    # Loading state
+    is_loading: bool = False
 
     # Current user info (store only ID, not entire User object)
     current_user_id: int = 0
@@ -52,6 +55,9 @@ class AuthState(rx.State):
         """Register a new user."""
         from vocab_stack.services.auth_service import AuthService
 
+        # Set loading state
+        self.is_loading = True
+        
         # Clear previous messages
         self.error_message = ""
         self.success_message = ""
@@ -81,16 +87,21 @@ class AuthState(rx.State):
             self.email = ""
             self.password = ""
             self.confirm_password = ""
-
+            
+            self.is_loading = False
             return rx.redirect("/dashboard")
         else:
             self.error_message = message
+            self.is_loading = False
             return []
 
     def login(self) -> rx.event:
         """Log in an existing user."""
         from vocab_stack.services.auth_service import AuthService
 
+        # Set loading state
+        self.is_loading = True
+        
         # Clear previous messages
         self.error_message = ""
         self.success_message = ""
@@ -112,10 +123,12 @@ class AuthState(rx.State):
             # Clear form fields
             self.username_input = ""
             self.password = ""
-
+            
+            self.is_loading = False
             return rx.redirect("/dashboard")
         else:
             self.error_message = message
+            self.is_loading = False
             return []
 
     def logout(self) -> rx.event:
@@ -171,7 +184,11 @@ def login_page():
                     mb=4,
                 ),
                 rx.button(
-                    "Login", type="submit", width="100%", color_scheme="blue"
+                    "Login", 
+                    type="submit", 
+                    width="100%", 
+                    color_scheme="blue",
+                    loading=AuthState.is_loading,
                 ),
                 width="100%",
             ),
@@ -240,6 +257,7 @@ def register_page():
                     type="submit",
                     width="100%",
                     color_scheme="blue",
+                    loading=AuthState.is_loading,
                 ),
                 width="100%",
             ),

@@ -11,6 +11,7 @@ dependencies = [
     "ipywidgets>=8.1.7",
     "psycopg2-binary>=2.9.11",
     "pytest>=8.4.2",
+    "python-dotenv>=1.2.1",
     "reflex>=0.8.15",
     "sqlmodel>=0.0.27",
 ]

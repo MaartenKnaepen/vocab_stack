@@ -14,7 +14,7 @@ class User(rx.Model, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Session management
-    session_token: Optional[str] = None
+    session_token: Optional[str] = Field(default=None, index=True)  # CRITICAL: Every request checks this
     token_expires: Optional[datetime] = None
     is_admin: bool = Field(default=False)
     last_login: Optional[datetime] = None
@@ -51,8 +51,8 @@ class Flashcard(rx.Model, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Foreign Keys
-    topic_id: int = Field(foreign_key="topic.id")
-    user_id: int = Field(foreign_key="user.id")
+    topic_id: int = Field(foreign_key="topic.id", index=True)  # HIGH: Filter by topic frequently
+    user_id: int = Field(foreign_key="user.id", index=True)  # HIGH: Data isolation per user
     
     # Relationships
     topic: Topic = Relationship(back_populates="flashcards")
@@ -71,7 +71,7 @@ class LeitnerState(rx.Model, table=True):
     incorrect_count: int = Field(default=0, ge=0)
     
     # Foreign Key (One-to-One with Flashcard)
-    flashcard_id: int = Field(foreign_key="flashcard.id", unique=True)
+    flashcard_id: int = Field(foreign_key="flashcard.id", unique=True, index=True)  # MEDIUM: Review session queries
     
     # Relationship
     flashcard: Flashcard = Relationship(back_populates="leitner_state")
@@ -85,8 +85,8 @@ class ReviewHistory(rx.Model, table=True):
     time_spent_seconds: Optional[int] = Field(default=None, ge=0)
     
     # Foreign Keys
-    flashcard_id: int = Field(foreign_key="flashcard.id")
-    user_id: int = Field(foreign_key="user.id")
+    flashcard_id: int = Field(foreign_key="flashcard.id", index=True)  # MEDIUM: Review history queries
+    user_id: int = Field(foreign_key="user.id", index=True)  # MEDIUM: User statistics
     
     # Relationships
     flashcard: Flashcard = Relationship(back_populates="review_history")

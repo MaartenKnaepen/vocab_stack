@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: vocab_stack_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-vocabuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-vocab_stack_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"  # Exposed for backup script access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vocabuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vocab_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vocab_stack_app
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-vocabuser}:${DB_PASSWORD}@db:5432/${DB_NAME:-vocab_stack_db}
+      - API_URL=${API_URL:-http://localhost:3000}
+      - DEPLOY_URL=${DEPLOY_URL:-http://localhost:3000}
+      - SECRET_KEY=${SECRET_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@vocab.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    ports:
+      - "3000:3000"
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    networks:
+      - vocab_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  vocab_network:
+    driver: bridge
